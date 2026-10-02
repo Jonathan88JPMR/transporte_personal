@@ -1,0 +1,157 @@
+-- ============================================
+-- TRANSPORTE DE PERSONAL - TABLAS
+-- Base de datos: TRANSPORTE_PERSONAL
+-- ============================================
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_USUARIOS'))
+CREATE TABLE TP_USUARIOS (
+    idUsuario      INT IDENTITY(1,1) PRIMARY KEY,
+    usuario        NVARCHAR(50)  NOT NULL UNIQUE,
+    claveHash      NVARCHAR(200) NOT NULL,
+    nombre         NVARCHAR(200) NOT NULL,
+    idrol          NVARCHAR(20)  NOT NULL, -- SPTRANS | COTRANS | CHTRANS | ADTRANS
+    placa          NVARCHAR(20)  NULL,     -- unidad asignada (conductores)
+    area           NVARCHAR(100) NULL,     -- area del supervisor
+    activo         BIT NOT NULL DEFAULT 1,
+    fechaCreacion  DATETIME NOT NULL DEFAULT GETDATE()
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_UNIDADES'))
+CREATE TABLE TP_UNIDADES (
+    idUnidad   INT IDENTITY(1,1) PRIMARY KEY,
+    placa      NVARCHAR(20) NOT NULL UNIQUE,
+    capacidad  INT NOT NULL DEFAULT 15,
+    activa     BIT NOT NULL DEFAULT 1
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_PUNTOS'))
+CREATE TABLE TP_PUNTOS (
+    idPunto INT IDENTITY(1,1) PRIMARY KEY,
+    nombre  NVARCHAR(150) NOT NULL UNIQUE,
+    latitud DECIMAL(9,6) NULL,
+    longitud DECIMAL(9,6) NULL,
+    activo  BIT NOT NULL DEFAULT 1
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_MOTIVOS'))
+CREATE TABLE TP_MOTIVOS (
+    idMotivo INT IDENTITY(1,1) PRIMARY KEY,
+    nombre   NVARCHAR(100) NOT NULL UNIQUE,
+    activo   BIT NOT NULL DEFAULT 1
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_TRASLADOS'))
+CREATE TABLE TP_TRASLADOS (
+    idTraslado    INT IDENTITY(1,1) PRIMARY KEY,
+    placa         NVARCHAR(20)  NOT NULL,
+    ruta          NVARCHAR(1000) NULL, -- puntos ordenados, ej: "P1 > P3 > P5 > P7"
+    estado        NVARCHAR(20)  NOT NULL DEFAULT 'PENDIENTE',
+    fechaCreacion DATETIME NOT NULL DEFAULT GETDATE()
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_SOLICITUDES'))
+CREATE TABLE TP_SOLICITUDES (
+    idSolicitud      INT IDENTITY(1,1) PRIMARY KEY,
+    idTraslado       INT NULL REFERENCES TP_TRASLADOS(idTraslado),
+    nombre           NVARCHAR(200) NOT NULL,  -- solicitante
+    area             NVARCHAR(100) NULL,
+    fechaProgramada  DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE),
+    horaProgramada   NVARCHAR(10)  NOT NULL,
+    puntoPartida     NVARCHAR(150) NOT NULL,
+    puntoLlegada     NVARCHAR(150) NOT NULL,
+    cantidad         INT NOT NULL CHECK (cantidad > 0),
+    motivo           NVARCHAR(100) NULL,
+    observacion      NVARCHAR(500) NULL,
+    esEmergencia     BIT NOT NULL DEFAULT 0,
+    placa            NVARCHAR(20)  NULL,
+    realizado        BIT NOT NULL DEFAULT 0,
+    estado           NVARCHAR(20)  NOT NULL DEFAULT 'PENDIENTE', -- PENDIENTE | ASIGNADO | EN_RUTA | REALIZADO | ANULADO
+    usuarioRegistra  NVARCHAR(50)  NULL,
+    fechaRegistro    DATETIME NOT NULL DEFAULT GETDATE(),
+    fechaInicio      DATETIME NULL,
+    fechaFin         DATETIME NULL
+);
+GO
+
+-- Migración idempotente para bases existentes
+IF COL_LENGTH('TP_SOLICITUDES', 'fechaProgramada') IS NULL
+    ALTER TABLE TP_SOLICITUDES ADD fechaProgramada DATE NOT NULL CONSTRAINT DF_TP_SOLICITUDES_fechaProgramada DEFAULT CAST(GETDATE() AS DATE);
+IF COL_LENGTH('TP_SOLICITUDES', 'observacion') IS NULL
+    ALTER TABLE TP_SOLICITUDES ADD observacion NVARCHAR(500) NULL;
+IF COL_LENGTH('TP_SOLICITUDES', 'esEmergencia') IS NULL
+    ALTER TABLE TP_SOLICITUDES ADD esEmergencia BIT NOT NULL CONSTRAINT DF_TP_SOLICITUDES_esEmergencia DEFAULT 0;
+IF COL_LENGTH('TP_SOLICITUDES', 'fechaInicio') IS NULL
+    ALTER TABLE TP_SOLICITUDES ADD fechaInicio DATETIME NULL;
+IF COL_LENGTH('TP_SOLICITUDES', 'fechaFin') IS NULL
+    ALTER TABLE TP_SOLICITUDES ADD fechaFin DATETIME NULL;
+IF COL_LENGTH('TP_PUNTOS', 'latitud') IS NULL
+    ALTER TABLE TP_PUNTOS ADD latitud DECIMAL(9,6) NULL;
+IF COL_LENGTH('TP_PUNTOS', 'longitud') IS NULL
+    ALTER TABLE TP_PUNTOS ADD longitud DECIMAL(9,6) NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_TRASLADO_PARADAS'))
+CREATE TABLE TP_TRASLADO_PARADAS (
+    idParada INT IDENTITY(1,1) PRIMARY KEY,
+    idTraslado INT NOT NULL REFERENCES TP_TRASLADOS(idTraslado),
+    idPunto INT NULL REFERENCES TP_PUNTOS(idPunto),
+    punto NVARCHAR(150) NOT NULL,
+    orden INT NOT NULL,
+    cantidadSube INT NOT NULL DEFAULT 0,
+    cantidadBaja INT NOT NULL DEFAULT 0,
+    UNIQUE (idTraslado, orden)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_SOLICITUD_UNIDADES'))
+CREATE TABLE TP_SOLICITUD_UNIDADES (
+    idSolicitudUnidad INT IDENTITY(1,1) PRIMARY KEY,
+    idSolicitud INT NOT NULL REFERENCES TP_SOLICITUDES(idSolicitud),
+    idUnidad INT NOT NULL REFERENCES TP_UNIDADES(idUnidad),
+    cantidadAsignada INT NOT NULL CHECK (cantidadAsignada > 0),
+    estado NVARCHAR(20) NOT NULL DEFAULT 'ASIGNADO',
+    UNIQUE (idSolicitud, idUnidad)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_AUDITORIA'))
+CREATE TABLE TP_AUDITORIA (
+    idAuditoria BIGINT IDENTITY(1,1) PRIMARY KEY,
+    entidad NVARCHAR(50) NOT NULL,
+    idEntidad INT NULL,
+    accion NVARCHAR(50) NOT NULL,
+    usuario NVARCHAR(100) NULL,
+    detalle NVARCHAR(MAX) NULL,
+    fecha DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_NOTIFICACIONES'))
+CREATE TABLE TP_NOTIFICACIONES (
+    idNotificacion BIGINT IDENTITY(1,1) PRIMARY KEY,
+    idUsuario INT NULL REFERENCES TP_USUARIOS(idUsuario),
+    titulo NVARCHAR(150) NOT NULL,
+    mensaje NVARCHAR(500) NOT NULL,
+    tipo NVARCHAR(30) NOT NULL DEFAULT 'INFO',
+    leida BIT NOT NULL DEFAULT 0,
+    fecha DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'TP_OPERACIONES_CLIENTE'))
+CREATE TABLE TP_OPERACIONES_CLIENTE (
+    idOperacion UNIQUEIDENTIFIER PRIMARY KEY,
+    usuario NVARCHAR(100) NULL,
+    fecha DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+-- Datos semilla
+IF NOT EXISTS (SELECT 1 FROM TP_MOTIVOS)
+    INSERT INTO TP_MOTIVOS (nombre) VALUES ('Actividad'), ('Salud'), ('Capacitación'), ('Emergencia');
+GO

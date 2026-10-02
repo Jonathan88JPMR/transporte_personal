@@ -1,0 +1,26 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+bin-temp/
+
+# Logs
+*.log
+
+# Configuración local
+appsettings.Development.json
+
+# Variables de entorno
+.env
+.env.*
+
+# Test
+TestResults/
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
