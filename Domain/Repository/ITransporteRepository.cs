@@ -13,6 +13,7 @@ namespace api_transporte_personal.Domain.Repository
 
         // Asignación y agrupación de traslados
         Task<List<JsonElement>> AsignarUnidadAsync(string json);
+        Task<List<JsonElement>> DesasignarUnidadAsync(string json);
         Task<List<JsonElement>> UnirSolicitudesAsync(string json);
         Task<List<JsonElement>> SepararSolicitudAsync(string json);
 
@@ -36,5 +37,13 @@ namespace api_transporte_personal.Domain.Repository
         Task<List<JsonElement>> ListarAuditoriaAsync(string json);
         Task<List<JsonElement>> ListarNotificacionesAsync(string json);
         Task<List<JsonElement>> MarcarNotificacionAsync(string json);
+
+        // Seguimiento de paradas
+        Task<List<JsonElement>> ParadaLlegadaAsync(string json);
+        Task<List<JsonElement>> ParadaRegistrarAsync(string json);
+        Task<List<JsonElement>> ParadaOmitirAsync(string json);
+        Task<List<JsonElement>> ParadaImprevistaAsync(string json);
+        Task<List<JsonElement>> TrasladoProgresoAsync(string json);
+        Task<List<JsonElement>> ReportarUbicacionAsync(string json);
     }
 }

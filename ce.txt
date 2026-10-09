@@ -1,0 +1,44 @@
+
+-- CAMBIAR ESTADO  @json: { "idSolicitud": 1, "estado": "EN_RUTA" }
+CREATE   PROCEDURE TRANSPORTE_cambiarEstado
+    @json NVARCHAR(MAX)
+AS
+BEGIN
+    DECLARE @id INT = TRY_CAST(JSON_VALUE(@json, '$.idSolicitud') AS INT);
+    DECLARE @idSolicitudUnidad INT = TRY_CAST(JSON_VALUE(@json, '$.idSolicitudUnidad') AS INT);
+    DECLARE @estado NVARCHAR(20) = UPPER(JSON_VALUE(@json, '$.estado'));
+
+    IF @estado NOT IN ('PENDIENTE', 'ASIGNADO', 'EN_RUTA', 'REALIZADO')
+    BEGIN RAISERROR(N'Estado de solicitud inválido', 16, 1); RETURN; END
+
+    IF @estado IN ('ASIGNADO', 'EN_RUTA', 'REALIZADO')
+       AND NOT EXISTS (SELECT 1 FROM TP_SOLICITUDES WHERE idSolicitud = @id AND placa IS NOT NULL)
+    BEGIN RAISERROR('La solicitud debe tener una unidad asignada', 16, 1); RETURN; END
+
+    IF @idSolicitudUnidad IS NOT NULL
+    BEGIN
+        UPDATE TP_SOLICITUD_UNIDADES SET estado = @estado WHERE idSolicitudUnidad = @idSolicitudUnidad AND idSolicitud = @id;
+        UPDATE TP_SOLICITUDES
+        SET estado = CASE WHEN NOT EXISTS (SELECT 1 FROM TP_SOLICITUD_UNIDADES WHERE idSolicitud = @id AND estado <> 'REALIZADO') THEN 'REALIZADO'
+                          WHEN EXISTS (SELECT 1 FROM TP_SOLICITUD_UNIDADES WHERE idSolicitud = @id AND estado = 'EN_RUTA') THEN 'EN_RUTA' ELSE 'ASIGNADO' END,
+            realizado = CASE WHEN NOT EXISTS (SELECT 1 FROM TP_SOLICITUD_UNIDADES WHERE idSolicitud = @id AND estado <> 'REALIZADO') THEN 1 ELSE 0 END,
+            fechaInicio = CASE WHEN @estado = 'EN_RUTA' AND fechaInicio IS NULL THEN GETDATE() ELSE fechaInicio END,
+            fechaFin = CASE WHEN NOT EXISTS (SELECT 1 FROM TP_SOLICITUD_UNIDADES WHERE idSolicitud = @id AND estado <> 'REALIZADO') THEN GETDATE() ELSE fechaFin END
+        WHERE idSolicitud = @id;
+    END
+    ELSE
+    BEGIN
+        UPDATE TP_SOLICITUDES
+        SET estado = @estado,
+            realizado = CASE WHEN @estado = 'REALIZADO' THEN 1 ELSE 0 END,
+            fechaInicio = CASE WHEN @estado = 'EN_RUTA' AND fechaInicio IS NULL THEN GETDATE() ELSE fechaInicio END,
+            fechaFin = CASE WHEN @estado = 'REALIZADO' THEN GETDATE() ELSE NULL END
+        WHERE idSolicitud = @id AND estado <> 'ANULADO';
+    END
+    INSERT INTO TP_AUDITORIA(entidad,idEntidad,accion,usuario,detalle) VALUES('SOLICITUD',@id,CONCAT('ESTADO_',@estado),JSON_VALUE(@json,'$.usuario'),@json);
+    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo)
+    SELECT u.idUsuario, 'Estado de movilidad actualizado', CONCAT('La solicitud #',@id,N' cambió a ',@estado), 'ESTADO'
+    FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario=s.usuarioRegistra WHERE s.idSolicitud=@id AND u.activo=1;
+    SELECT * FROM TP_SOLICITUDES WHERE idSolicitud = @id FOR JSON PATH;
+END
+

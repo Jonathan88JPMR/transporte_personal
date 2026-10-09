@@ -1,0 +1,27 @@
+
+-- SEPARAR SOLICITUD  @json: { "idSolicitud": 1 }
+-- Quita la solicitud del traslado; si el traslado queda vacío se anula
+CREATE   PROCEDURE TRANSPORTE_separarSolicitud
+    @json NVARCHAR(MAX)
+AS
+BEGIN
+    DECLARE @id INT = TRY_CAST(JSON_VALUE(@json, '$.idSolicitud') AS INT);
+    DECLARE @idTraslado INT = (SELECT idTraslado FROM TP_SOLICITUDES WHERE idSolicitud = @id);
+
+    UPDATE TP_SOLICITUDES
+    SET idTraslado = NULL, placa = NULL, estado = 'PENDIENTE'
+    WHERE idSolicitud = @id;
+
+    IF @idTraslado IS NOT NULL AND NOT EXISTS (SELECT 1 FROM TP_SOLICITUDES WHERE idTraslado = @idTraslado)
+        UPDATE TP_TRASLADOS SET estado = 'ANULADO' WHERE idTraslado = @idTraslado;
+
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
+    SELECT u.idUsuario, 'Solicitud separada', CONCAT('Su solicitud #', @id, N' fue separada del traslado y volvió a Pendiente'), 'ESTADO'
+    FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario = s.usuarioRegistra
+    WHERE s.idSolicitud = @id AND u.activo = 1;
+    INSERT INTO TP_AUDITORIA(entidad, idEntidad, accion, usuario, detalle)
+    VALUES ('SOLICITUD', @id, 'SEPARAR', JSON_VALUE(@json, '$.usuario'), @json);
+
+    SELECT * FROM TP_SOLICITUDES WHERE idSolicitud = @id FOR JSON PATH;
+END
+

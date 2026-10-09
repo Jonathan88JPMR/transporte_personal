@@ -28,6 +28,9 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
         public async Task<List<JsonElement>> AsignarUnidadAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_asignarUnidad", json);
 
+        public async Task<List<JsonElement>> DesasignarUnidadAsync(string json)
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_desasignarUnidad", json);
+
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_unirSolicitudes", json);
 
@@ -66,5 +69,13 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
         public Task<List<JsonElement>> ListarAuditoriaAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarAuditoria", json);
         public Task<List<JsonElement>> ListarNotificacionesAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarNotificaciones", json);
         public Task<List<JsonElement>> MarcarNotificacionAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_marcarNotificacion", json);
+
+        // Seguimiento de paradas
+        public Task<List<JsonElement>> ParadaLlegadaAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_paradaLlegada", json);
+        public Task<List<JsonElement>> ParadaRegistrarAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_paradaRegistrar", json);
+        public Task<List<JsonElement>> ParadaOmitirAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_paradaOmitir", json);
+        public Task<List<JsonElement>> ParadaImprevistaAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_paradaImprevista", json);
+        public Task<List<JsonElement>> TrasladoProgresoAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_trasladoProgreso", json);
+        public Task<List<JsonElement>> ReportarUbicacionAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_reportarUbicacion", json);
     }
 }

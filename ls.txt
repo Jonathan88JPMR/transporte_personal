@@ -1,0 +1,27 @@
+
+-- Listar solicitudes: orden por prioridad (EMERGENCIA > ALTA > NORMAL)
+CREATE   PROCEDURE TRANSPORTE_listarSolicitudes
+    @json NVARCHAR(MAX)
+AS
+BEGIN
+    DECLARE @fecha  DATE = TRY_CAST(JSON_VALUE(@json, '$.fecha') AS DATE);
+    DECLARE @estado NVARCHAR(20) = JSON_VALUE(@json, '$.estado');
+    DECLARE @usuario NVARCHAR(50) = JSON_VALUE(@json, '$.usuario');
+    -- Si quien consulta es supervisor, solo ve solicitudes de su area
+    DECLARE @idAreaFiltro INT = (SELECT idArea FROM TP_USUARIOS WHERE usuario = @usuario AND idrol = 'SPTRANS');
+
+    SELECT s.idSolicitud, s.idTraslado, s.idArea, s.nombre, COALESCE(a.nombre, s.area) AS area,
+           s.fechaProgramada, s.horaProgramada, s.puntoPartida, s.puntoLlegada, s.cantidad,
+           s.motivo, s.observacion, s.prioridad, s.esEmergencia, s.placa,
+           s.realizado, s.estado, s.usuarioRegistra, s.fechaRegistro, s.fechaInicio, s.fechaFin
+    FROM TP_SOLICITUDES s
+    LEFT JOIN TP_AREAS a ON a.idArea = s.idArea
+    WHERE (@fecha  IS NULL OR s.fechaProgramada = @fecha)
+      AND (@estado IS NULL OR s.estado = @estado)
+      AND (@usuario IS NULL OR @idAreaFiltro IS NULL OR s.idArea = @idAreaFiltro)
+    -- RN-004: prioridad primero (emergencias al tope), luego orden de registro
+    ORDER BY CASE s.prioridad WHEN 'EMERGENCIA' THEN 0 WHEN 'ALTA' THEN 1 ELSE 2 END,
+             s.fechaRegistro, s.idSolicitud
+    FOR JSON PATH;
+END
+

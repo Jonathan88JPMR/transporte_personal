@@ -67,6 +67,7 @@ namespace api_transporte_personal.Controllers
                         rol = reader.GetString(4),
                         placa = reader.IsDBNull(5) ? null : reader.GetString(5),
                         area = reader.IsDBNull(6) ? null : reader.GetString(6),
+                        idArea = reader.FieldCount > 8 && !reader.IsDBNull(8) ? reader.GetInt32(8) : (int?)null,
                         token = GenerateToken(reader.GetInt32(0), reader.GetString(1), reader.GetString(3))
                     });
                 }
@@ -181,6 +182,11 @@ namespace api_transporte_personal.Controllers
             => await Ejecutar(() => _useCase.AsignarUnidadAsync(body.GetRawText()));
 
         [Authorize(Roles = "COTRANS,ADTRANS")]
+        [HttpPost("solicitudes/desasignar")]
+        public async Task<IActionResult> DesasignarUnidad([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.DesasignarUnidadAsync(body.GetRawText()));
+
+        [Authorize(Roles = "COTRANS,ADTRANS")]
         [HttpPost("traslados/unir")]
         public async Task<IActionResult> UnirSolicitudes([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.UnirSolicitudesAsync(body.GetRawText()));
@@ -193,6 +199,11 @@ namespace api_transporte_personal.Controllers
         [HttpPost("traslados/listar")]
         public async Task<IActionResult> ListarTraslados([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.ListarTrasladosAsync(body.GetRawText()));
+
+        [Authorize(Roles = "COTRANS,ADTRANS,SPTRANS")]
+        [HttpPost("traslados/progreso")]
+        public async Task<IActionResult> TrasladoProgreso([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.TrasladoProgresoAsync(body.GetRawText()));
 
         [Authorize(Roles = "COTRANS,ADTRANS")]
         [HttpPost("traslados/paradas")]
@@ -213,7 +224,7 @@ namespace api_transporte_personal.Controllers
 
         #region Conductor
 
-        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS,SPTRANS")]
         [HttpPost("conductor/servicios")]
         public async Task<IActionResult> ServiciosConductor([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.ListarServiciosConductorAsync(body.GetRawText()));
@@ -222,6 +233,36 @@ namespace api_transporte_personal.Controllers
         [HttpPost("conductor/agregar-pasajeros")]
         public async Task<IActionResult> AgregarPasajeros([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.AgregarPasajerosAsync(body.GetRawText()));
+
+        #endregion
+
+        #region Seguimiento de paradas
+
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [HttpPost("paradas/llegada")]
+        public async Task<IActionResult> ParadaLlegada([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ParadaLlegadaAsync(body.GetRawText()));
+
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [HttpPost("paradas/registrar")]
+        public async Task<IActionResult> ParadaRegistrar([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ParadaRegistrarAsync(body.GetRawText()));
+
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [HttpPost("paradas/omitir")]
+        public async Task<IActionResult> ParadaOmitir([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ParadaOmitirAsync(body.GetRawText()));
+
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [HttpPost("paradas/imprevista")]
+        public async Task<IActionResult> ParadaImprevista([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ParadaImprevistaAsync(body.GetRawText()));
+
+        // Ping GPS del conductor: posición en vivo de la unidad en ruta
+        [Authorize(Roles = "CHTRANS,COTRANS,ADTRANS")]
+        [HttpPost("unidades/ubicacion")]
+        public async Task<IActionResult> ReportarUbicacion([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ReportarUbicacionAsync(body.GetRawText()));
 
         #endregion
 

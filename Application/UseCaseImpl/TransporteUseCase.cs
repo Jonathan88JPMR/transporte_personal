@@ -53,6 +53,12 @@ namespace api_transporte_personal.Application.UseCaseImpl
             return await _repo.AsignarUnidadAsync(json);
         }
 
+        public async Task<List<JsonElement>> DesasignarUnidadAsync(string json)
+        {
+            _logger.LogInformation("UseCase - Desasignando unidad de solicitud");
+            return await _repo.DesasignarUnidadAsync(json);
+        }
+
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
         {
             _logger.LogInformation("UseCase - Uniendo solicitudes en un solo traslado");
@@ -118,5 +124,13 @@ namespace api_transporte_personal.Application.UseCaseImpl
         public Task<List<JsonElement>> ListarAuditoriaAsync(string json) => _repo.ListarAuditoriaAsync(json);
         public Task<List<JsonElement>> ListarNotificacionesAsync(string json) => _repo.ListarNotificacionesAsync(json);
         public Task<List<JsonElement>> MarcarNotificacionAsync(string json) => _repo.MarcarNotificacionAsync(json);
+
+        // Seguimiento de paradas
+        public Task<List<JsonElement>> ParadaLlegadaAsync(string json) => _repo.ParadaLlegadaAsync(json);
+        public Task<List<JsonElement>> ParadaRegistrarAsync(string json) => _repo.ParadaRegistrarAsync(json);
+        public Task<List<JsonElement>> ParadaOmitirAsync(string json) => _repo.ParadaOmitirAsync(json);
+        public Task<List<JsonElement>> ParadaImprevistaAsync(string json) => _repo.ParadaImprevistaAsync(json);
+        public Task<List<JsonElement>> TrasladoProgresoAsync(string json) => _repo.TrasladoProgresoAsync(json);
+        public Task<List<JsonElement>> ReportarUbicacionAsync(string json) => _repo.ReportarUbicacionAsync(json);
     }
 }

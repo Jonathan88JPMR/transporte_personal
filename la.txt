@@ -1,0 +1,4 @@
+
+CREATE   PROCEDURE TRANSPORTE_listarAuditoria @json NVARCHAR(MAX)
+AS BEGIN SELECT TOP 500 idAuditoria, entidad, idEntidad, accion, usuario, detalle, fecha FROM TP_AUDITORIA ORDER BY fecha DESC FOR JSON PATH; END
+
