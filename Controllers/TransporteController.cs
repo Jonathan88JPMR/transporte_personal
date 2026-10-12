@@ -327,6 +327,14 @@ namespace api_transporte_personal.Controllers
                 var resultado = await accion();
                 return Ok(resultado);
             }
+            catch (SqlException sqlEx)
+            {
+                // RAISERROR de validación en los SPs: es un error del cliente,
+                // no del servidor — se devuelve 400 con el mensaje real
+                var mensaje = sqlEx.Errors.Count > 0 ? sqlEx.Errors[0].Message : sqlEx.Message;
+                _logger.LogWarning(sqlEx, "Validación de negocio rechazada por SQL");
+                return BadRequest(new { mensaje });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error ejecutando operación de transporte");
