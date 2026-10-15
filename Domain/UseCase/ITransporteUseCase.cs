@@ -45,5 +45,14 @@ namespace api_transporte_personal.Domain.UseCase
         Task<List<JsonElement>> ParadaImprevistaAsync(string json);
         Task<List<JsonElement>> TrasladoProgresoAsync(string json);
         Task<List<JsonElement>> ReportarUbicacionAsync(string json);
+
+        // Órdenes de servicio
+        Task<List<JsonElement>> GenerarOSAsync(string json);
+        Task<List<JsonElement>> ListarOSAsync(string json);
+        Task<List<JsonElement>> MarcarOSAsync(string json);
+
+        // Comunicados de horas sin servicio
+        Task<List<JsonElement>> AdministrarComunicadoAsync(string json);
+        Task<List<JsonElement>> ComunicadosActivosAsync(string json);
     }
 }

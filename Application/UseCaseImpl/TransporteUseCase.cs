@@ -132,5 +132,14 @@ namespace api_transporte_personal.Application.UseCaseImpl
         public Task<List<JsonElement>> ParadaImprevistaAsync(string json) => _repo.ParadaImprevistaAsync(json);
         public Task<List<JsonElement>> TrasladoProgresoAsync(string json) => _repo.TrasladoProgresoAsync(json);
         public Task<List<JsonElement>> ReportarUbicacionAsync(string json) => _repo.ReportarUbicacionAsync(json);
+
+        // Órdenes de servicio
+        public Task<List<JsonElement>> GenerarOSAsync(string json) => _repo.GenerarOSAsync(json);
+        public Task<List<JsonElement>> ListarOSAsync(string json) => _repo.ListarOSAsync(json);
+        public Task<List<JsonElement>> MarcarOSAsync(string json) => _repo.MarcarOSAsync(json);
+
+        // Comunicados de horas sin servicio
+        public Task<List<JsonElement>> AdministrarComunicadoAsync(string json) => _repo.AdministrarComunicadoAsync(json);
+        public Task<List<JsonElement>> ComunicadosActivosAsync(string json) => _repo.ComunicadosActivosAsync(json);
     }
 }

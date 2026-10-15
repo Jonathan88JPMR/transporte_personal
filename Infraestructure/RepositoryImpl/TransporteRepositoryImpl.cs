@@ -77,5 +77,14 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
         public Task<List<JsonElement>> ParadaImprevistaAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_paradaImprevista", json);
         public Task<List<JsonElement>> TrasladoProgresoAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_trasladoProgreso", json);
         public Task<List<JsonElement>> ReportarUbicacionAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_reportarUbicacion", json);
+
+        // Órdenes de servicio
+        public Task<List<JsonElement>> GenerarOSAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_generarOS", json);
+        public Task<List<JsonElement>> ListarOSAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarOS", json);
+        public Task<List<JsonElement>> MarcarOSAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_marcarOS", json);
+
+        // Comunicados de horas sin servicio
+        public Task<List<JsonElement>> AdministrarComunicadoAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_administrarComunicado", json);
+        public Task<List<JsonElement>> ComunicadosActivosAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_comunicadosActivos", json);
     }
 }

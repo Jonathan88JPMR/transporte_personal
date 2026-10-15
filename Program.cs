@@ -3,6 +3,7 @@ using api_transporte_personal.Application.UseCaseImpl;
 using api_transporte_personal.Domain.Repository;
 using api_transporte_personal.Domain.UseCase;
 using api_transporte_personal.Infraestructure.RepositoryImpl;
+using api_transporte_personal.Infraestructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
@@ -64,6 +65,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<ITransporteUseCase, TransporteUseCase>();
 builder.Services.AddScoped<ITransporteRepository, TransporteRepositoryImpl>();
+builder.Services.AddHttpClient<LogisticaClient>();
 
 var app = builder.Build();
 
