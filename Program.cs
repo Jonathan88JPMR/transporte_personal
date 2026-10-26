@@ -69,12 +69,14 @@ builder.Services.AddHttpClient<LogisticaClient>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Swagger disponible también en producción (IIS corre como Production y no hay
+// ASPNETCORE_ENVIRONMENT). Mismo patrón que api_logistica — es API interna de la red.
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Transporte Personal v1");
+    c.DocumentTitle = "API Transporte Personal Docs";
+});
 
 app.UseCors("AllowAll");
 app.UseResponseCompression();
