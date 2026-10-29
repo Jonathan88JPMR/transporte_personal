@@ -45,6 +45,7 @@ namespace api_transporte_personal.Domain.Models
         public string? area { get; set; }
         public DateOnly fechaProgramada { get; set; }
         public string horaProgramada { get; set; } = string.Empty;
+        public string? horaRequerida { get; set; }
         public string puntoPartida { get; set; } = string.Empty;
         public string puntoLlegada { get; set; } = string.Empty;
         public int cantidad { get; set; }
