@@ -22,37 +22,37 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_marcarRealizado", json);
 
         public async Task<List<JsonElement>> CambiarEstadoAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_cambiarEstado", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_cambiarEstado_V2", json);
 
         // Asignación y agrupación de traslados
         public async Task<List<JsonElement>> AsignarUnidadAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_asignarUnidad", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_asignarUnidad_V2", json);
 
         public async Task<List<JsonElement>> DesasignarUnidadAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_desasignarUnidad", json);
 
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_unirSolicitudes", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_unirSolicitudes_V2", json);
 
         public async Task<List<JsonElement>> SepararSolicitudAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_separarSolicitud", json);
 
         // Conductor
         public async Task<List<JsonElement>> ListarServiciosConductorAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarServiciosConductor", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarServiciosConductor_V2", json);
 
         public async Task<List<JsonElement>> ListarTrasladosAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarTraslados", json);
 
         public async Task<List<JsonElement>> AgregarPasajerosAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_agregarPasajeros", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_agregarPasajeros_V2", json);
 
         // Catálogos
         public async Task<List<JsonElement>> ListarPuntosAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarPuntos", json);
 
         public async Task<List<JsonElement>> ListarUnidadesAsync(string json)
-            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarUnidades", json);
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarUnidades_V2", json);
 
         public async Task<List<JsonElement>> ListarMotivosAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarMotivos", json);
@@ -62,8 +62,8 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_reporteSolicitudes", json);
 
         public Task<List<JsonElement>> GuardarParadasAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_guardarParadas", json);
-        public Task<List<JsonElement>> AcoplarSolicitudAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_acoplarSolicitud", json);
-        public Task<List<JsonElement>> AsignarMultiplesUnidadesAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_asignarMultiplesUnidades", json);
+        public Task<List<JsonElement>> AcoplarSolicitudAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_acoplarSolicitud_V2", json);
+        public Task<List<JsonElement>> AsignarMultiplesUnidadesAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_asignarMultiplesUnidades_V2", json);
         public Task<List<JsonElement>> AdministrarCatalogoAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_administrarCatalogo", json);
         public Task<List<JsonElement>> ReporteIndicadoresAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_reporteIndicadores", json);
         public Task<List<JsonElement>> ListarAuditoriaAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_listarAuditoria", json);
