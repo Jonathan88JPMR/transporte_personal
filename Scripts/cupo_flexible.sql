@@ -17,10 +17,17 @@
 -- Aplicar junto con estado_abordo.sql (ambos crean sus *_V2).
 -- =====================================================================
 
+-- Las tablas TP_* tienen indices filtrados: los SPs DEBEN crearse con
+-- QUOTED_IDENTIFIER ON (sin esto, todo UPDATE/INSERT falla con Msg 1934).
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
 -- 1) Asignar unidad V2: igual que la version viva (estadoOperativo +
 --    traslado implicito + paradas base + detalle) pero SIN el bloqueo
 --    de cupo. La confirmacion de sobreasignacion es en la UI.
-CREATE PROCEDURE TRANSPORTE_asignarUnidad_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_asignarUnidad_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
@@ -82,7 +89,7 @@ GO
 
 -- 2) Unir solicitudes V2: igual que la version viva (paradas fusionadas
 --    por punto + detalle por solicitud) pero SIN el bloqueo de cupo.
-CREATE PROCEDURE TRANSPORTE_unirSolicitudes_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_unirSolicitudes_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
@@ -173,7 +180,7 @@ GO
 -- 3) Asignar multiples V2: igual que la version viva (disuelve traslados
 --    previos, traslado implicito por porcion, estadoOperativo) pero SIN
 --    el bloqueo de cupo por unidad. A_BORDO cuenta como "en curso".
-CREATE PROCEDURE TRANSPORTE_asignarMultiplesUnidades_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_asignarMultiplesUnidades_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
@@ -297,7 +304,7 @@ GO
 -- 4) Acoplar solicitud V2: igual que la version viva (guarda de area,
 --    bloqueo si el traslado ya inicio, fusión de paradas, compatibilidad
 --    geografica) pero SIN el bloqueo de cupo.
-CREATE PROCEDURE TRANSPORTE_acoplarSolicitud_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_acoplarSolicitud_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
@@ -430,7 +437,7 @@ GO
 -- 5) Agregar pasajeros V2: igual que la version viva (estadoOperativo
 --    implicito via placa activa, registro del extra en la parada actual
 --    via idParada) pero SIN el bloqueo de cupo y aceptando A_BORDO.
-CREATE PROCEDURE TRANSPORTE_agregarPasajeros_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_agregarPasajeros_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN

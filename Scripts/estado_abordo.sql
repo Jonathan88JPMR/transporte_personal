@@ -25,8 +25,15 @@
 --    en servicios MULTIPLE (su.idTraslado).
 -- =====================================================================
 
+-- Las tablas TP_* tienen indices filtrados: los SPs DEBEN crearse con
+-- QUOTED_IDENTIFIER ON (sin esto, todo UPDATE/INSERT falla con Msg 1934).
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
 -- 1) Cambiar estado V2: A_BORDO + auto-cierre de paradas al realizar
-CREATE PROCEDURE TRANSPORTE_cambiarEstado_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_cambiarEstado_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
@@ -134,7 +141,7 @@ END
 GO
 
 -- 2) Listar unidades V2: el cupo ocupado cuenta servicios A_BORDO
-CREATE PROCEDURE TRANSPORTE_listarUnidades_V2 @json NVARCHAR(MAX)
+CREATE OR ALTER PROCEDURE TRANSPORTE_listarUnidades_V2 @json NVARCHAR(MAX)
 AS BEGIN
     DECLARE @fecha DATE = COALESCE(TRY_CAST(JSON_VALUE(@json, '$.fecha') AS DATE), CAST(GETDATE() AS DATE));
 
@@ -163,7 +170,7 @@ GO
 -- 3) Servicios del conductor V2: paradas con idParada, estado, conteos
 --    reales y detalle por solicitud; en MULTIPLE usa el traslado de la
 --    porcion (su.idTraslado) para que cada unidad vea su propia ruta.
-CREATE PROCEDURE TRANSPORTE_listarServiciosConductor_V2
+CREATE OR ALTER PROCEDURE TRANSPORTE_listarServiciosConductor_V2
     @json NVARCHAR(MAX)
 AS
 BEGIN
