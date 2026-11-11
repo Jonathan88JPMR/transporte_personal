@@ -24,6 +24,9 @@ namespace api_transporte_personal.Controllers
         private readonly ITransporteUseCase _useCase;
         private readonly SymmetricSecurityKey _signingKey;
         private readonly LogisticaClient _logistica;
+        // Clave AES para claveVisible: la clave en claro viaja cifrada a la BD
+        // y solo el API puede descifrarla al listar usuarios.
+        private readonly byte[] _claveAesKey;
 
         public TransporteController(IConfiguration configuration, ILogger<TransporteController> logger, ITransporteUseCase useCase, SymmetricSecurityKey signingKey, LogisticaClient logistica)
         {
@@ -32,6 +35,8 @@ namespace api_transporte_personal.Controllers
             _useCase = useCase;
             _signingKey = signingKey;
             _logistica = logistica;
+            _claveAesKey = Convert.FromBase64String(configuration["Claves:AesKey"]
+                ?? throw new InvalidOperationException("Falta Claves:AesKey en la configuración"));
         }
 
         #region Auth
@@ -309,9 +314,44 @@ namespace api_transporte_personal.Controllers
                     && idrol != "CHTRANS" && idrol != "SPTRANS")
                     return BadRequest(new { mensaje = "El coordinador solo puede crear conductores o supervisores" });
             }
+            var entidadJson = datos.TryGetValue("entidad", out var ej) ? ej?.ToString()?.ToUpperInvariant() : null;
+            var accionJson = datos.TryGetValue("accion", out var aj) ? aj?.ToString() : null;
+            // claveVisible nunca se acepta del cliente: el servidor lo genera
+            // cifrado a partir de "clave" (o no lo envía y el SP conserva el actual)
+            datos.Remove("claveVisible");
             if (datos.TryGetValue("clave", out var clave) && clave is JsonElement elemento && elemento.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(elemento.GetString()))
+            {
                 datos["claveHash"] = HashPassword(elemento.GetString()!);
+                datos["claveVisible"] = EncriptarClave(elemento.GetString()!);
+            }
             datos.Remove("clave");
+            // LISTAR de usuarios devuelve claveVisible cifrada: se descifra aquí
+            // antes de responder. Al coordinador solo le llegan las claves de
+            // supervisores y conductores (los roles que puede gestionar).
+            if (entidadJson == "USUARIO" && string.Equals(accionJson, "LISTAR", StringComparison.OrdinalIgnoreCase))
+            {
+                List<JsonElement> filas;
+                try { filas = await _useCase.AdministrarCatalogoAsync(JsonSerializer.Serialize(datos)); }
+                catch (SqlException sqlEx) { return BadRequest(new { mensaje = sqlEx.Errors.Count > 0 ? sqlEx.Errors[0].Message : sqlEx.Message }); }
+                catch (Exception ex) { _logger.LogError(ex, "Error ejecutando operación de transporte"); return StatusCode(500, new { mensaje = "Error interno del servidor" }); }
+                var esCoordinador = rol == "COTRANS";
+                var salida = new List<Dictionary<string, object?>>();
+                foreach (var fila in filas.SelectMany(f => f.ValueKind == JsonValueKind.Array ? f.EnumerateArray() : Enumerable.Repeat(f, 1)))
+                {
+                    if (fila.ValueKind != JsonValueKind.Object) continue;
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(fila.GetRawText())!
+                        .ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
+                    var puedeVer = !esCoordinador
+                        || (dict.TryGetValue("idrol", out var idrolEl) && idrolEl is JsonElement je
+                            && (je.GetString() == "CHTRANS" || je.GetString() == "SPTRANS"));
+                    if (dict.TryGetValue("claveVisible", out var cv) && cv is JsonElement cve && cve.ValueKind == JsonValueKind.String)
+                        dict["claveVisible"] = puedeVer ? DesencriptarClave(cve.GetString()!) : null;
+                    else if (!puedeVer)
+                        dict["claveVisible"] = null;
+                    salida.Add(dict);
+                }
+                return Ok(salida);
+            }
             return await Ejecutar(() => _useCase.AdministrarCatalogoAsync(JsonSerializer.Serialize(datos)));
         }
 
@@ -560,6 +600,32 @@ namespace api_transporte_personal.Controllers
                 _logger.LogError(ex, "Error ejecutando operación de transporte");
                 return StatusCode(500, new { mensaje = "Error interno del servidor" });
             }
+        }
+
+        // AES-GCM: el valor guardado es base64(nonce 12B | tag 16B | cifrado)
+        private string EncriptarClave(string clave)
+        {
+            var nonce = RandomNumberGenerator.GetBytes(12);
+            var plano = Encoding.UTF8.GetBytes(clave);
+            var cifrado = new byte[plano.Length];
+            var tag = new byte[16];
+            using var aes = new AesGcm(_claveAesKey, 16);
+            aes.Encrypt(nonce, plano, cifrado, tag);
+            return Convert.ToBase64String(nonce.Concat(tag).Concat(cifrado).ToArray());
+        }
+
+        private string? DesencriptarClave(string valor)
+        {
+            try
+            {
+                var datos = Convert.FromBase64String(valor);
+                if (datos.Length < 28) return null;
+                using var aes = new AesGcm(_claveAesKey, 16);
+                var plano = new byte[datos.Length - 28];
+                aes.Decrypt(datos.AsSpan(0, 12), datos.AsSpan(28), datos.AsSpan(12, 16), plano);
+                return Encoding.UTF8.GetString(plano);
+            }
+            catch { return null; }
         }
 
         private static string HashPassword(string password)

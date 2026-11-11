@@ -554,15 +554,16 @@ BEGIN
     IF @entidad = 'USUARIO'
     BEGIN
         IF @accion = 'GUARDAR'
-            IF @id IS NULL INSERT INTO TP_USUARIOS(usuario, claveHash, nombre, idrol, placa, area)
-                VALUES(JSON_VALUE(@json, '$.usuario'), JSON_VALUE(@json, '$.claveHash'),
+            IF @id IS NULL INSERT INTO TP_USUARIOS(usuario, claveHash, claveVisible, nombre, idrol, placa, area)
+                VALUES(JSON_VALUE(@json, '$.usuario'), JSON_VALUE(@json, '$.claveHash'), JSON_VALUE(@json, '$.claveVisible'),
                        JSON_VALUE(@json, '$.nombre'), JSON_VALUE(@json, '$.idrol'), JSON_VALUE(@json, '$.placa'), JSON_VALUE(@json, '$.area'));
             ELSE UPDATE TP_USUARIOS SET nombre = JSON_VALUE(@json, '$.nombre'), idrol = JSON_VALUE(@json, '$.idrol'),
                  placa = JSON_VALUE(@json, '$.placa'), area = JSON_VALUE(@json, '$.area'), activo = COALESCE(TRY_CAST(JSON_VALUE(@json, '$.activo') AS BIT), activo),
-                 claveHash = COALESCE(NULLIF(JSON_VALUE(@json, '$.claveHash'), ''), claveHash)
+                 claveHash = COALESCE(NULLIF(JSON_VALUE(@json, '$.claveHash'), ''), claveHash),
+                 claveVisible = COALESCE(NULLIF(JSON_VALUE(@json, '$.claveVisible'), ''), claveVisible)
                  WHERE idUsuario = @id;
         ELSE IF @accion = 'ELIMINAR' UPDATE TP_USUARIOS SET activo = 0 WHERE idUsuario = @id;
-        SELECT idUsuario, usuario, nombre, idrol, placa, area, activo FROM TP_USUARIOS ORDER BY nombre FOR JSON PATH; RETURN;
+        SELECT idUsuario, usuario, nombre, idrol, placa, area, claveVisible, activo FROM TP_USUARIOS ORDER BY nombre FOR JSON PATH; RETURN;
     END
     RAISERROR(N'Entidad administrativa inválida', 16, 1);
 END
