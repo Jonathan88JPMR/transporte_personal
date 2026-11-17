@@ -66,6 +66,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ITransporteUseCase, TransporteUseCase>();
 builder.Services.AddScoped<ITransporteRepository, TransporteRepositoryImpl>();
 builder.Services.AddHttpClient<LogisticaClient>();
+builder.Services.AddSingleton<PushNotificationService>();
 
 var app = builder.Build();
 

@@ -1,5 +1,6 @@
 using api_transporte_personal.Domain.Repository;
 using api_transporte_personal.Domain.UseCase;
+using api_transporte_personal.Infraestructure.Services;
 using System.Text.Json;
 
 namespace api_transporte_personal.Application.UseCaseImpl
@@ -7,11 +8,13 @@ namespace api_transporte_personal.Application.UseCaseImpl
     public class TransporteUseCase : ITransporteUseCase
     {
         private readonly ITransporteRepository _repo;
+        private readonly PushNotificationService _push;
         private readonly ILogger<TransporteUseCase> _logger;
 
-        public TransporteUseCase(ITransporteRepository repo, ILogger<TransporteUseCase> logger)
+        public TransporteUseCase(ITransporteRepository repo, PushNotificationService push, ILogger<TransporteUseCase> logger)
         {
             _repo = repo;
+            _push = push;
             _logger = logger;
         }
 
@@ -47,10 +50,13 @@ namespace api_transporte_personal.Application.UseCaseImpl
         }
 
         // Asignación y agrupación de traslados
+        // Cada operación de asignación dispara Web Push al conductor (fire-and-forget)
         public async Task<List<JsonElement>> AsignarUnidadAsync(string json)
         {
             _logger.LogInformation("UseCase - Asignando unidad a solicitud");
-            return await _repo.AsignarUnidadAsync(json);
+            var resultado = await _repo.AsignarUnidadAsync(json);
+            _ = _push.EnviarAsignacionAsync(resultado);
+            return resultado;
         }
 
         public async Task<List<JsonElement>> DesasignarUnidadAsync(string json)
@@ -62,7 +68,9 @@ namespace api_transporte_personal.Application.UseCaseImpl
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
         {
             _logger.LogInformation("UseCase - Uniendo solicitudes en un solo traslado");
-            return await _repo.UnirSolicitudesAsync(json);
+            var resultado = await _repo.UnirSolicitudesAsync(json);
+            _ = _push.EnviarAsignacionAsync(resultado);
+            return resultado;
         }
 
         public async Task<List<JsonElement>> SepararSolicitudAsync(string json)
@@ -117,8 +125,18 @@ namespace api_transporte_personal.Application.UseCaseImpl
         }
 
         public Task<List<JsonElement>> GuardarParadasAsync(string json) => _repo.GuardarParadasAsync(json);
-        public Task<List<JsonElement>> AcoplarSolicitudAsync(string json) => _repo.AcoplarSolicitudAsync(json);
-        public Task<List<JsonElement>> AsignarMultiplesUnidadesAsync(string json) => _repo.AsignarMultiplesUnidadesAsync(json);
+        public async Task<List<JsonElement>> AcoplarSolicitudAsync(string json)
+        {
+            var resultado = await _repo.AcoplarSolicitudAsync(json);
+            _ = _push.EnviarAsignacionAsync(resultado);
+            return resultado;
+        }
+        public async Task<List<JsonElement>> AsignarMultiplesUnidadesAsync(string json)
+        {
+            var resultado = await _repo.AsignarMultiplesUnidadesAsync(json);
+            _ = _push.EnviarAsignacionAsync(resultado);
+            return resultado;
+        }
         public Task<List<JsonElement>> AdministrarCatalogoAsync(string json) => _repo.AdministrarCatalogoAsync(json);
         public Task<List<JsonElement>> ReporteIndicadoresAsync(string json) => _repo.ReporteIndicadoresAsync(json);
         public Task<List<JsonElement>> ListarAuditoriaAsync(string json) => _repo.ListarAuditoriaAsync(json);
@@ -141,5 +159,9 @@ namespace api_transporte_personal.Application.UseCaseImpl
         // Comunicados de horas sin servicio
         public Task<List<JsonElement>> AdministrarComunicadoAsync(string json) => _repo.AdministrarComunicadoAsync(json);
         public Task<List<JsonElement>> ComunicadosActivosAsync(string json) => _repo.ComunicadosActivosAsync(json);
+
+        // Suscripciones Web Push
+        public Task<List<JsonElement>> GuardarSuscripcionPushAsync(string json) => _repo.GuardarSuscripcionPushAsync(json);
+        public Task<List<JsonElement>> EliminarSuscripcionPushAsync(string json) => _repo.EliminarSuscripcionPushAsync(json);
     }
 }

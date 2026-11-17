@@ -24,17 +24,19 @@ namespace api_transporte_personal.Controllers
         private readonly ITransporteUseCase _useCase;
         private readonly SymmetricSecurityKey _signingKey;
         private readonly LogisticaClient _logistica;
+        private readonly PushNotificationService _push;
         // Clave AES para claveVisible: la clave en claro viaja cifrada a la BD
         // y solo el API puede descifrarla al listar usuarios.
         private readonly byte[] _claveAesKey;
 
-        public TransporteController(IConfiguration configuration, ILogger<TransporteController> logger, ITransporteUseCase useCase, SymmetricSecurityKey signingKey, LogisticaClient logistica)
+        public TransporteController(IConfiguration configuration, ILogger<TransporteController> logger, ITransporteUseCase useCase, SymmetricSecurityKey signingKey, LogisticaClient logistica, PushNotificationService push)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")!;
             _logger = logger;
             _useCase = useCase;
             _signingKey = signingKey;
             _logistica = logistica;
+            _push = push;
             _claveAesKey = Convert.FromBase64String(configuration["Claves:AesKey"]
                 ?? throw new InvalidOperationException("Falta Claves:AesKey en la configuración"));
         }
@@ -362,6 +364,20 @@ namespace api_transporte_personal.Controllers
         [HttpPost("notificaciones/marcar-leida")]
         public async Task<IActionResult> MarcarNotificacion([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.MarcarNotificacionAsync(body.GetRawText()));
+
+        // Web Push: el frontend suscribe cada dispositivo tras el login y la
+        // API envía push al conductor cuando el coordinador asigna un viaje.
+        [HttpGet("push/vapid-publica")]
+        public IActionResult ClavePublicaVapid()
+            => Ok(new { publicKey = _push.ClavePublica });
+
+        [HttpPost("push/suscribir")]
+        public async Task<IActionResult> SuscribirPush([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.GuardarSuscripcionPushAsync(body.GetRawText()));
+
+        [HttpPost("push/dar-baja")]
+        public async Task<IActionResult> BajaPush([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.EliminarSuscripcionPushAsync(body.GetRawText()));
 
         #endregion
 

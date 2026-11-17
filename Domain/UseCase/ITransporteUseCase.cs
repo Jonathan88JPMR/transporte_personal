@@ -54,5 +54,9 @@ namespace api_transporte_personal.Domain.UseCase
         // Comunicados de horas sin servicio
         Task<List<JsonElement>> AdministrarComunicadoAsync(string json);
         Task<List<JsonElement>> ComunicadosActivosAsync(string json);
+
+        // Suscripciones Web Push
+        Task<List<JsonElement>> GuardarSuscripcionPushAsync(string json);
+        Task<List<JsonElement>> EliminarSuscripcionPushAsync(string json);
     }
 }

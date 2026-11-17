@@ -86,5 +86,9 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
         // Comunicados de horas sin servicio
         public Task<List<JsonElement>> AdministrarComunicadoAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_administrarComunicado", json);
         public Task<List<JsonElement>> ComunicadosActivosAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_comunicadosActivos", json);
+
+        // Suscripciones Web Push
+        public Task<List<JsonElement>> GuardarSuscripcionPushAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_guardarSuscripcionPush", json);
+        public Task<List<JsonElement>> EliminarSuscripcionPushAsync(string json) => ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_eliminarSuscripcionPush", json);
     }
 }

@@ -172,12 +172,13 @@ BEGIN
     SET placa = @placa, estado = 'ASIGNADO'
     WHERE idSolicitud = @id;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @id, ' asignada a la unidad ', @placa), 'ASIGNACION'
-    FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @id, ' asignada a la unidad ', @placa), 'ASIGNACION', s.fechaProgramada
+    FROM TP_USUARIOS u JOIN TP_SOLICITUDES s ON s.idSolicitud = @id
+    WHERE u.placa = @placa AND u.activo = 1;
     -- RF-038: notificar al supervisor que registró la solicitud
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', @id, ' fue asignada a la unidad ', @placa), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', @id, ' fue asignada a la unidad ', @placa), 'ASIGNACION', s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario = s.usuarioRegistra
     WHERE s.idSolicitud = @id AND u.activo = 1;
     INSERT INTO TP_AUDITORIA(entidad, idEntidad, accion, usuario, detalle)
@@ -243,12 +244,13 @@ BEGIN
     JOIN OPENJSON(@json, '$.ids') j ON s.idSolicitud = TRY_CAST(j.value AS INT);
 
     -- Notificar al conductor de la unidad
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Traslado T-', @idTraslado, ' asignado a la unidad ', @placa), 'ASIGNACION'
-    FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Nuevo servicio asignado', CONCAT('Traslado T-', @idTraslado, ' asignado a la unidad ', @placa), 'ASIGNACION', s.fechaProgramada
+    FROM TP_USUARIOS u JOIN TP_SOLICITUDES s ON s.idTraslado = @idTraslado
+    WHERE u.placa = @placa AND u.activo = 1;
     -- RF-038: notificar a los supervisores que registraron cada solicitud
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', s.idSolicitud, N' se unió al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', s.idSolicitud, N' se unió al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION', s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario = s.usuarioRegistra
     WHERE s.idTraslado = @idTraslado AND u.activo = 1;
     INSERT INTO TP_AUDITORIA(entidad, idEntidad, accion, usuario, detalle)
@@ -470,9 +472,10 @@ BEGIN
 
     UPDATE TP_SOLICITUDES SET idTraslado = @idTraslado, placa = @placa, estado = 'ASIGNADO' WHERE idSolicitud = @idSolicitud;
     -- Notificar al conductor de la unidad del traslado
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @idSolicitud, N' se acopló al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION'
-    FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @idSolicitud, N' se acopló al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION', s.fechaProgramada
+    FROM TP_USUARIOS u JOIN TP_SOLICITUDES s ON s.idSolicitud = @idSolicitud
+    WHERE u.placa = @placa AND u.activo = 1;
     INSERT INTO TP_AUDITORIA(entidad, idEntidad, accion, usuario, detalle)
     VALUES ('SOLICITUD', @idSolicitud, 'ACOPLAR', JSON_VALUE(@json, '$.usuario'), @json);
     SELECT * FROM TP_SOLICITUDES WHERE idSolicitud = @idSolicitud FOR JSON PATH;
@@ -500,13 +503,14 @@ BEGIN
     UPDATE TP_SOLICITUDES SET placa = CASE WHEN (SELECT COUNT(*) FROM OPENJSON(@json, '$.unidades')) = 1
                                           THEN JSON_VALUE(@json, '$.unidades[0].placa') ELSE 'MULTIPLE' END,
                                   estado = 'ASIGNADO' WHERE idSolicitud = @idSolicitud;
-    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo)
-    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a ',u.placa),'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
+    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUD_UNIDADES su JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad JOIN TP_USUARIOS usr ON usr.placa=u.placa AND usr.activo=1
+    JOIN TP_SOLICITUDES s ON s.idSolicitud=su.idSolicitud
     WHERE su.idSolicitud=@idSolicitud;
     -- RF-038: notificar al supervisor que registró la solicitud
-    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo)
-    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a ',u.placa),'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
+    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS usr ON usr.usuario=s.usuarioRegistra AND usr.activo=1
     JOIN TP_SOLICITUD_UNIDADES su ON su.idSolicitud=s.idSolicitud JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad
     WHERE s.idSolicitud=@idSolicitud;
@@ -607,7 +611,7 @@ GO
 CREATE OR ALTER PROCEDURE TRANSPORTE_listarNotificaciones @json NVARCHAR(MAX)
 AS BEGIN
     DECLARE @idUsuario INT = TRY_CAST(JSON_VALUE(@json, '$.idUsuario') AS INT);
-    SELECT TOP 100 idNotificacion, titulo, mensaje, tipo, leida, fecha FROM TP_NOTIFICACIONES
+    SELECT TOP 100 idNotificacion, titulo, mensaje, tipo, leida, fecha, fechaServicio FROM TP_NOTIFICACIONES
     WHERE idUsuario = @idUsuario OR idUsuario IS NULL ORDER BY fecha DESC FOR JSON PATH;
 END
 GO

@@ -42,8 +42,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM TP_SOLICITUDES WHERE idSolicitud = @id AND estado = 'PENDIENTE')
     BEGIN RAISERROR('La solicitud no esta pendiente de asignacion', 16, 1); RETURN; END
 
-    DECLARE @pp NVARCHAR(300), @pl NVARCHAR(300);
-    SELECT @pp = puntoPartida, @pl = puntoLlegada FROM TP_SOLICITUDES WHERE idSolicitud = @id;
+    DECLARE @pp NVARCHAR(300), @pl NVARCHAR(300), @fechaServicio DATE;
+    SELECT @pp = puntoPartida, @pl = puntoLlegada, @fechaServicio = fechaProgramada
+    FROM TP_SOLICITUDES WHERE idSolicitud = @id;
 
     -- Traslado implicito (una sola solicitud)
     INSERT INTO TP_TRASLADOS (placa, ruta) VALUES (@placa, CONCAT(@pp, ' > ', @pl));
@@ -71,12 +72,12 @@ BEGIN
         SELECT TOP 1 p.idParada, @id, 'B', @cantidad
         FROM TP_TRASLADO_PARADAS p WHERE p.idTraslado = @idTraslado ORDER BY p.orden;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @id, ' asignada a la unidad ', @placa), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @id, ' asignada a la unidad ', @placa), 'ASIGNACION', @fechaServicio
     FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', @id, ' fue asignada a la unidad ', @placa), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', @id, ' fue asignada a la unidad ', @placa), 'ASIGNACION', s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario = s.usuarioRegistra
     WHERE s.idSolicitud = @id AND u.activo = 1;
 
@@ -116,6 +117,9 @@ BEGIN
     IF (SELECT COUNT(DISTINCT s.fechaProgramada)
         FROM TP_SOLICITUDES s JOIN @Ids i ON s.idSolicitud = i.idSolicitud) > 1
     BEGIN RAISERROR('Solo se pueden unir solicitudes de la misma fecha', 16, 1); RETURN; END
+
+    DECLARE @fechaServicio DATE = (SELECT MAX(s.fechaProgramada)
+        FROM TP_SOLICITUDES s JOIN @Ids i ON s.idSolicitud = i.idSolicitud);
 
     -- Eventos S/B por solicitud: partida antes que llegada (evOrd 0/1)
     DECLARE @Eventos TABLE (solOrd INT, evOrd INT, idSolicitud INT,
@@ -159,12 +163,12 @@ BEGIN
     SET s.idTraslado = @idTraslado, s.placa = @placa, s.estado = 'ASIGNADO'
     FROM TP_SOLICITUDES s JOIN @Ids i ON s.idSolicitud = i.idSolicitud;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Traslado T-', @idTraslado, ' asignado a la unidad ', @placa), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Traslado T-', @idTraslado, ' asignado a la unidad ', @placa), 'ASIGNACION', @fechaServicio
     FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', s.idSolicitud, ' se unio al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT u.idUsuario, 'Solicitud asignada', CONCAT('Su solicitud #', s.idSolicitud, ' se unio al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION', s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS u ON u.usuario = s.usuarioRegistra
     WHERE s.idTraslado = @idTraslado AND u.activo = 1;
 
@@ -281,13 +285,14 @@ BEGIN
         estado = 'ASIGNADO'
     WHERE idSolicitud = @idSolicitud;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo)
-    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a ',u.placa),'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
+    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUD_UNIDADES su JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad JOIN TP_USUARIOS usr ON usr.placa=u.placa AND usr.activo=1
+    JOIN TP_SOLICITUDES s ON s.idSolicitud=su.idSolicitud
     WHERE su.idSolicitud=@idSolicitud;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo)
-    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a ',u.placa),'ASIGNACION'
+    INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
+    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS usr ON usr.usuario=s.usuarioRegistra AND usr.activo=1
     JOIN TP_SOLICITUD_UNIDADES su ON su.idSolicitud=s.idSolicitud JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad
     WHERE s.idSolicitud=@idSolicitud;
@@ -425,9 +430,10 @@ BEGIN
                           FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,3,'');
     UPDATE TP_TRASLADOS SET ruta = @ruta WHERE idTraslado = @idTraslado;
 
-    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo)
-    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @idSolicitud, ' se acoplo al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION'
-    FROM TP_USUARIOS WHERE placa = @placa AND activo = 1;
+    INSERT INTO TP_NOTIFICACIONES(idUsuario, titulo, mensaje, tipo, fechaServicio)
+    SELECT idUsuario, 'Nuevo servicio asignado', CONCAT('Solicitud #', @idSolicitud, ' se acoplo al traslado T-', @idTraslado, ' (', @placa, ')'), 'ASIGNACION', s.fechaProgramada
+    FROM TP_USUARIOS u JOIN TP_SOLICITUDES s ON s.idSolicitud = @idSolicitud
+    WHERE u.placa = @placa AND u.activo = 1;
     INSERT INTO TP_AUDITORIA(entidad, idEntidad, accion, usuario, detalle)
     VALUES ('SOLICITUD', @idSolicitud, 'ACOPLAR', JSON_VALUE(@json, '$.usuario'), @json);
     SELECT * FROM TP_SOLICITUDES WHERE idSolicitud = @idSolicitud FOR JSON PATH;
