@@ -32,15 +32,17 @@ namespace api_transporte_personal.Infraestructure.Services
 
         // Extrae las placas del resultado de un SP de asignación (solicitud,
         // traslado o porciones multi-unidad) y envía push a los conductores.
+        // Solo se envía cuando el servicio es del día (regla "alertas de hoy").
         // Se invoca fire-and-forget: nunca bloquea ni rompe la respuesta.
         public async Task EnviarAsignacionAsync(List<JsonElement> resultado)
         {
             try
             {
                 if (!Configurado) return;
-                var placas = ExtraerPlacas(resultado).ToList();
-                if (!placas.Any()) return;
-                await EnviarPorPlacasAsync(placas);
+                var datos = ExtraerDatos(resultado);
+                if (!datos.Placas.Any()) return;
+                if (!await EsDelDiaAsync(datos)) return;
+                await EnviarPorPlacasAsync(datos.Placas.Distinct().ToList());
             }
             catch (Exception ex)
             {
@@ -48,23 +50,57 @@ namespace api_transporte_personal.Infraestructure.Services
             }
         }
 
-        private static IEnumerable<string> ExtraerPlacas(IEnumerable<JsonElement> elementos)
+        private static DatosAsignacion ExtraerDatos(IEnumerable<JsonElement> elementos)
         {
+            var d = new DatosAsignacion();
             foreach (var el in elementos)
             {
                 var items = el.ValueKind == JsonValueKind.Array ? el.EnumerateArray() : Enumerable.Empty<JsonElement>().Append(el);
                 foreach (var item in items)
                 {
-                    if (item.ValueKind == JsonValueKind.Object
-                        && item.TryGetProperty("placa", out var p)
-                        && p.ValueKind == JsonValueKind.String)
+                    if (item.ValueKind != JsonValueKind.Object) continue;
+                    if (item.TryGetProperty("placa", out var p) && p.ValueKind == JsonValueKind.String)
                     {
                         var placa = p.GetString();
                         if (!string.IsNullOrWhiteSpace(placa) && placa != "MULTIPLE")
-                            yield return placa;
+                            d.Placas.Add(placa);
                     }
+                    if (item.TryGetProperty("idSolicitud", out var s) && s.ValueKind == JsonValueKind.Number)
+                        d.IdsSolicitud.Add(s.GetInt32());
+                    if (item.TryGetProperty("idTraslado", out var t) && t.ValueKind == JsonValueKind.Number)
+                        d.IdsTraslado.Add(t.GetInt32());
+                    if (item.TryGetProperty("fechaProgramada", out var f) && f.ValueKind == JsonValueKind.String
+                        && DateTime.TryParse(f.GetString(), out var fecha))
+                        d.FechasDirectas.Add(fecha.Date);
                 }
             }
+            return d;
+        }
+
+        // "Solo del día": la fecha programada del servicio debe ser hoy.
+        // La hora oficial es la del servidor de BD (CAST(GETDATE() AS DATE)).
+        private async Task<bool> EsDelDiaAsync(DatosAsignacion d)
+        {
+            if (d.FechasDirectas.Any(f => f == DateTime.Today)) return true;
+            if (!d.IdsSolicitud.Any() && !d.IdsTraslado.Any()) return false;
+            var condiciones = new List<string>();
+            if (d.IdsSolicitud.Any()) condiciones.Add($"idSolicitud IN ({string.Join(",", d.IdsSolicitud.Distinct())})");
+            if (d.IdsTraslado.Any()) condiciones.Add($"idTraslado IN ({string.Join(",", d.IdsTraslado.Distinct())})");
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = new SqlCommand(
+                $@"SELECT COUNT(*) FROM TP_SOLICITUDES
+                   WHERE CAST(fechaProgramada AS DATE) = CAST(GETDATE() AS DATE)
+                     AND ({string.Join(" OR ", condiciones)})", conn);
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+        }
+
+        private class DatosAsignacion
+        {
+            public List<string> Placas { get; } = [];
+            public List<int> IdsSolicitud { get; } = [];
+            public List<int> IdsTraslado { get; } = [];
+            public List<DateTime> FechasDirectas { get; } = [];
         }
 
         private async Task EnviarPorPlacasAsync(List<string> placas)
