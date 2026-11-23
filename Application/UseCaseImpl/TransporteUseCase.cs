@@ -65,6 +65,16 @@ namespace api_transporte_personal.Application.UseCaseImpl
             return await _repo.DesasignarUnidadAsync(json);
         }
 
+        // Reasignación por falla mecánica / edición de servicio asignado:
+        // el push avisa a la (nueva) unidad igual que una asignación normal
+        public async Task<List<JsonElement>> ActualizarAsignacionAsync(string json)
+        {
+            _logger.LogInformation("UseCase - Actualizando servicio asignado (unidad/datos)");
+            var resultado = await _repo.ActualizarAsignacionAsync(json);
+            _ = _push.EnviarAsignacionAsync(resultado);
+            return resultado;
+        }
+
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
         {
             _logger.LogInformation("UseCase - Uniendo solicitudes en un solo traslado");

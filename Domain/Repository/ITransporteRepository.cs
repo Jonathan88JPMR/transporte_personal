@@ -14,6 +14,7 @@ namespace api_transporte_personal.Domain.Repository
         // Asignación y agrupación de traslados
         Task<List<JsonElement>> AsignarUnidadAsync(string json);
         Task<List<JsonElement>> DesasignarUnidadAsync(string json);
+        Task<List<JsonElement>> ActualizarAsignacionAsync(string json);
         Task<List<JsonElement>> UnirSolicitudesAsync(string json);
         Task<List<JsonElement>> SepararSolicitudAsync(string json);
 

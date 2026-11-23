@@ -197,6 +197,11 @@ namespace api_transporte_personal.Controllers
             => await Ejecutar(() => _useCase.DesasignarUnidadAsync(body.GetRawText()));
 
         [Authorize(Roles = "COTRANS,ADTRANS")]
+        [HttpPost("solicitudes/actualizar-asignacion")]
+        public async Task<IActionResult> ActualizarAsignacion([FromBody] JsonElement body)
+            => await Ejecutar(() => _useCase.ActualizarAsignacionAsync(body.GetRawText()));
+
+        [Authorize(Roles = "COTRANS,ADTRANS")]
         [HttpPost("traslados/unir")]
         public async Task<IActionResult> UnirSolicitudes([FromBody] JsonElement body)
             => await Ejecutar(() => _useCase.UnirSolicitudesAsync(body.GetRawText()));

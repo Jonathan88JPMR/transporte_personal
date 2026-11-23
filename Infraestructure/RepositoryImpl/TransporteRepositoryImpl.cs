@@ -31,6 +31,9 @@ namespace api_transporte_personal.Infraestructure.RepositoryImpl
         public async Task<List<JsonElement>> DesasignarUnidadAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_desasignarUnidad", json);
 
+        public async Task<List<JsonElement>> ActualizarAsignacionAsync(string json)
+            => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_actualizarAsignacion", json);
+
         public async Task<List<JsonElement>> UnirSolicitudesAsync(string json)
             => await ExecuteStoredProcedureWithJsonArrayAsync("TRANSPORTE_unirSolicitudes_V2", json);
 
