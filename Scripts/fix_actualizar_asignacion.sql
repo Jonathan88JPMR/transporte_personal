@@ -82,6 +82,16 @@ BEGIN
     DECLARE @cambiaRuta BIT = CASE WHEN @pp IS NOT NULL OR @pl IS NOT NULL OR @cant IS NOT NULL THEN 1 ELSE 0 END;
     DECLARE @cambiaDato BIT = CASE WHEN @hora IS NOT NULL OR @cambiaRuta = 1 THEN 1 ELSE 0 END;
 
+    -- Las alertas de asignaciones previas de esta solicitud/traslado quedan
+    -- obsoletas: se marcan leidas para no duplicar el aviso al conductor
+    IF (@placaNueva IS NOT NULL AND @placaNueva <> @placaActual) OR @cambiaDato = 1
+        UPDATE TP_NOTIFICACIONES SET leida = 1
+        WHERE tipo = 'ASIGNACION' AND leida = 0
+          AND (mensaje LIKE '%#' + CAST(@id AS VARCHAR(10)) + ' %'
+               OR mensaje LIKE '%#' + CAST(@id AS VARCHAR(10))
+               OR mensaje LIKE '%T-' + CAST(@idTraslado AS VARCHAR(10)) + ' %'
+               OR mensaje LIKE '%T-' + CAST(@idTraslado AS VARCHAR(10)));
+
     -- ===== Cambio de unidad: mueve todo el traslado =====
     IF @placaNueva IS NOT NULL AND @placaNueva <> @placaActual
     BEGIN

@@ -227,6 +227,57 @@ BEGIN
     WHERE idTraslado IN (SELECT idTraslado FROM TP_SOLICITUD_UNIDADES
                          WHERE idSolicitud = @idSolicitud AND idTraslado IS NOT NULL);
 
+    -- La solicitud puede venir de una asignacion simple o unida: tambien hay
+    -- que sacarla de ese traslado, si no queda como fantasma (paradas viejas)
+    DECLARE @tPrevio INT = (SELECT idTraslado FROM TP_SOLICITUDES WHERE idSolicitud = @idSolicitud);
+    IF @tPrevio IS NOT NULL
+    BEGIN
+        DELETE d FROM TP_PARADA_DETALLE d
+        JOIN TP_TRASLADO_PARADAS p ON p.idParada = d.idParada
+        WHERE p.idTraslado = @tPrevio AND d.idSolicitud = @idSolicitud;
+        UPDATE TP_SOLICITUDES SET idTraslado = NULL WHERE idSolicitud = @idSolicitud;
+
+        IF EXISTS (SELECT 1 FROM TP_SOLICITUDES WHERE idTraslado = @tPrevio AND estado <> 'ANULADO')
+        BEGIN
+            -- Quedan otras solicitudes: reconstruir paradas sin esta
+            DECLARE @Ev2 TABLE (solOrd INT, evOrd INT, idSolicitud INT, punto NVARCHAR(150), tipo CHAR(1), cantidad INT);
+            INSERT INTO @Ev2
+            SELECT ROW_NUMBER() OVER (ORDER BY COALESCE(s.horaRequerida, s.horaProgramada), s.idSolicitud),
+                   0, s.idSolicitud, s.puntoPartida, 'S', s.cantidad
+            FROM TP_SOLICITUDES s WHERE s.idTraslado = @tPrevio AND s.estado <> 'ANULADO';
+            INSERT INTO @Ev2
+            SELECT e.solOrd, 1, s.idSolicitud, s.puntoLlegada, 'B', s.cantidad
+            FROM TP_SOLICITUDES s JOIN @Ev2 e ON e.idSolicitud = s.idSolicitud AND e.evOrd = 0
+            WHERE s.idTraslado = @tPrevio AND s.estado <> 'ANULADO';
+
+            DELETE d2 FROM TP_PARADA_DETALLE d2
+            JOIN TP_TRASLADO_PARADAS p2 ON p2.idParada = d2.idParada WHERE p2.idTraslado = @tPrevio;
+            DELETE FROM TP_TRASLADO_PARADAS WHERE idTraslado = @tPrevio;
+            INSERT INTO TP_TRASLADO_PARADAS (idTraslado, idPunto, punto, orden, cantidadSube, cantidadBaja)
+            SELECT @tPrevio, pt.idPunto, pl.punto, ROW_NUMBER() OVER (ORDER BY pl.posMin), pl.sube, pl.baja
+            FROM (SELECT e.punto, MIN(e.solOrd * 2 + e.evOrd) posMin,
+                         ISNULL(SUM(CASE WHEN e.tipo = 'S' THEN e.cantidad END), 0) sube,
+                         ISNULL(SUM(CASE WHEN e.tipo = 'B' THEN e.cantidad END), 0) baja
+                  FROM @Ev2 e GROUP BY e.punto) pl
+            LEFT JOIN TP_PUNTOS pt ON pt.nombre = pl.punto AND pt.activo = 1;
+            INSERT INTO TP_PARADA_DETALLE (idParada, idSolicitud, tipo, cantidadPlaneada)
+            SELECT p.idParada, e.idSolicitud, e.tipo, e.cantidad
+            FROM @Ev2 e JOIN TP_TRASLADO_PARADAS p ON p.idTraslado = @tPrevio AND p.punto = e.punto;
+            UPDATE TP_TRASLADOS SET ruta = STUFF((
+                SELECT ' > ' + punto FROM TP_TRASLADO_PARADAS WHERE idTraslado = @tPrevio
+                ORDER BY orden FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 3, '')
+            WHERE idTraslado = @tPrevio;
+        END
+        ELSE
+        BEGIN
+            -- El traslado quedo vacio: se anula y se limpia
+            DELETE d3 FROM TP_PARADA_DETALLE d3
+            JOIN TP_TRASLADO_PARADAS p3 ON p3.idParada = d3.idParada WHERE p3.idTraslado = @tPrevio;
+            DELETE FROM TP_TRASLADO_PARADAS WHERE idTraslado = @tPrevio;
+            UPDATE TP_TRASLADOS SET estado = 'ANULADO' WHERE idTraslado = @tPrevio;
+        END
+    END
+
     DELETE FROM TP_SOLICITUD_UNIDADES WHERE idSolicitud = @idSolicitud;
 
     INSERT INTO TP_SOLICITUD_UNIDADES(idSolicitud, idUnidad, cantidadAsignada)
@@ -285,14 +336,21 @@ BEGIN
         estado = 'ASIGNADO'
     WHERE idSolicitud = @idSolicitud;
 
+    -- Las alertas de asignaciones anteriores de esta solicitud quedan
+    -- obsoletas: se marcan leidas para no duplicar el aviso al conductor
+    UPDATE TP_NOTIFICACIONES SET leida = 1
+    WHERE tipo = 'ASIGNACION' AND leida = 0
+      AND (mensaje LIKE '%#' + CAST(@idSolicitud AS VARCHAR(10)) + ' %'
+           OR mensaje LIKE '%#' + CAST(@idSolicitud AS VARCHAR(10)));
+
     INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
-    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
+    SELECT usr.idUsuario,'Nuevo servicio asignado',CONCAT('Solicitud #',@idSolicitud,' asignada a la unidad ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUD_UNIDADES su JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad JOIN TP_USUARIOS usr ON usr.placa=u.placa AND usr.activo=1
     JOIN TP_SOLICITUDES s ON s.idSolicitud=su.idSolicitud
     WHERE su.idSolicitud=@idSolicitud;
 
     INSERT INTO TP_NOTIFICACIONES(idUsuario,titulo,mensaje,tipo,fechaServicio)
-    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a ',u.placa),'ASIGNACION',s.fechaProgramada
+    SELECT usr.idUsuario,'Solicitud asignada',CONCAT('Su solicitud #',@idSolicitud,' fue asignada a la unidad ',u.placa),'ASIGNACION',s.fechaProgramada
     FROM TP_SOLICITUDES s JOIN TP_USUARIOS usr ON usr.usuario=s.usuarioRegistra AND usr.activo=1
     JOIN TP_SOLICITUD_UNIDADES su ON su.idSolicitud=s.idSolicitud JOIN TP_UNIDADES u ON u.idUnidad=su.idUnidad
     WHERE s.idSolicitud=@idSolicitud;
